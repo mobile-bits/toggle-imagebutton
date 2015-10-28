@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <array name="toggle_icons" translatable="false">
+        <item>@drawable/ic_camera_front_black</item>
+        <item>@drawable/ic_camera_rear_black</item>
+    </array>
+
+    <array name="toggle_bigger" translatable="false">
+        <item>@drawable/ic_camera_front_black_36dp</item>
+        <item>@drawable/ic_camera_rear_black_36dp</item>
+    </array>
+
+</resources>
