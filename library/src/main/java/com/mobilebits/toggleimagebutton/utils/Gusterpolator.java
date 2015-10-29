@@ -1,4 +1,4 @@
-package com.mobilebits.toggleimagebutton;
+package com.mobilebits.toggleimagebutton.utils;
 
 import android.animation.TimeInterpolator;
 
