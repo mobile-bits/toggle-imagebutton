@@ -3,6 +3,7 @@ package com.mobilebits.toggleimagebutton.example;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.widget.LinearLayout;
+import android.widget.Toast;
 
 import com.mobilebits.toggleimagebutton.ToggleImageButton;
 
@@ -26,6 +27,9 @@ public class MainActivity extends AppCompatActivity {
         mVerticalLayout = (LinearLayout)findViewById(R.id.vertical_layout);
 
         mVerticalToggle.setAnimDirection(ToggleImageButton.ANIM_DIRECTION_HORIZONTAL);
+
+        mHorizontalToggle.setOnStateChangeListener((view, state) ->
+                Toast.makeText(this,String.format("Clicked with state %d",state),Toast.LENGTH_SHORT).show());
     }
 
     @Override
