@@ -10,11 +10,17 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.drawable.Drawable;
-import android.os.AsyncTask;
 import android.util.AttributeSet;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.ImageView;
+
+import com.mobilebits.toggleimagebutton.utils.Gusterpolator;
+
+import rx.Observable;
+import rx.android.schedulers.AndroidSchedulers;
+import rx.functions.Action1;
+import rx.schedulers.Schedulers;
 
 
 /**
@@ -36,7 +42,6 @@ public class ToggleImageButton extends ImageButton {
     private OnStateChangeListener mOnStateChangeListener;
     private int mState = UNSET;
     private int[] mImageIds;
-    private int[] mDescIds;
     private int mLevel;
     private boolean mClickEnabled = true;
     private int mParentSize;
@@ -89,47 +94,46 @@ public class ToggleImageButton extends ImageButton {
             return;
         }
 
-        new AsyncTask<Integer, Void, Bitmap>() {
-            @Override
-            protected Bitmap doInBackground(Integer... params) {
-                return combine(params[0], params[1]);
-            }
-
-            @Override
-            protected void onPostExecute(Bitmap bitmap) {
-                if (bitmap == null) {
-                    setStateInternal(state, callListener);
-                } else {
-                    setImageBitmap(bitmap);
-
-                    int offset;
-                    if (mAnimDirection == ANIM_DIRECTION_VERTICAL) {
-                        offset = (mParentSize+getHeight())/2;
-                    } else if (mAnimDirection == ANIM_DIRECTION_HORIZONTAL) {
-                        offset = (mParentSize+getWidth())/2;
-                    } else {
-                        return;
-                    }
-
-                    mAnimator.setFloatValues(-offset, 0.0f);
-                    AnimatorSet s = new AnimatorSet();
-                    s.play(mAnimator);
-                    s.addListener(new AnimatorListenerAdapter() {
-                        @Override
-                        public void onAnimationStart(Animator animation) {
-                            setClickEnabled(false);
-                        }
-
-                        @Override
-                        public void onAnimationEnd(Animator animation) {
+        Observable.just(combine(mState, state))
+                .subscribeOn(Schedulers.newThread())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(new Action1<Bitmap>() {
+                    @Override
+                    public void call(Bitmap bitmap) {
+                        if (bitmap == null) {
                             setStateInternal(state, callListener);
-                            setClickEnabled(true);
+                        } else {
+                            setImageBitmap(bitmap);
+
+                            int offset;
+                            if (mAnimDirection == ANIM_DIRECTION_VERTICAL) {
+                                offset = (mParentSize + getHeight()) / 2;
+                            } else if (mAnimDirection == ANIM_DIRECTION_HORIZONTAL) {
+                                offset = (mParentSize + getWidth()) / 2;
+                            } else {
+                                return;
+                            }
+
+                            mAnimator.setFloatValues(-offset, 0.0f);
+                            AnimatorSet s = new AnimatorSet();
+                            s.play(mAnimator);
+                            s.addListener(new AnimatorListenerAdapter() {
+                                @Override
+                                public void onAnimationStart(Animator animation) {
+                                    setClickEnabled(false);
+                                }
+
+                                @Override
+                                public void onAnimationEnd(Animator animation) {
+                                    setStateInternal(state, callListener);
+                                    setClickEnabled(true);
+                                }
+                            });
+                            s.start();
                         }
-                    });
-                    s.start();
-                }
-            }
-        }.execute(mState, state);
+                    }
+                });
+
     }
 
     public void setClickEnabled(boolean enabled) {
@@ -141,15 +145,6 @@ public class ToggleImageButton extends ImageButton {
         if (mImageIds != null) {
             setImageByState(mState);
         }
-
-/*        if (mDescIds != null) {
-            String oldContentDescription = String.valueOf(getContentDescription());
-            String newContentDescription = getResources().getString(mDescIds[mState]);
-            if (oldContentDescription != null && !oldContentDescription.isEmpty()
-                    && !oldContentDescription.equals(newContentDescription)) {
-                setContentDescription(newContentDescription);
-            }
-        }*/
         super.setImageLevel(mLevel);
 
         if (callListener && mOnStateChangeListener != null) {
@@ -204,10 +199,6 @@ public class ToggleImageButton extends ImageButton {
         if (imageIds > 0) {
             overrideImageIds(imageIds);
         }
-        int descIds = a.getResourceId(R.styleable.ToggleImageButton_contentDescriptionIds, 0);
-        if (descIds > 0) {
-            overrideContentDescriptions(descIds);
-        }
         a.recycle();
     }
 
@@ -227,21 +218,6 @@ public class ToggleImageButton extends ImageButton {
 
         if (mState >= 0 && mState < mImageIds.length) {
             setImageByState(mState);
-        }
-    }
-
-    public void overrideContentDescriptions(int resId) {
-        TypedArray ids = null;
-        try {
-            ids = getResources().obtainTypedArray(resId);
-            mDescIds = new int[ids.length()];
-            for (int i = 0; i < ids.length(); i++) {
-                mDescIds[i] = ids.getResourceId(i, 0);
-            }
-        } finally {
-            if (ids != null) {
-                ids.recycle();
-            }
         }
     }
 
