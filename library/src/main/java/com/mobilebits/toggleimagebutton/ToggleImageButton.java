@@ -19,7 +19,6 @@ import com.mobilebits.toggleimagebutton.utils.Gusterpolator;
 
 import rx.Observable;
 import rx.android.schedulers.AndroidSchedulers;
-import rx.functions.Action1;
 import rx.schedulers.Schedulers;
 
 
@@ -97,40 +96,37 @@ public class ToggleImageButton extends ImageButton {
         Observable.just(combine(mState, state))
                 .subscribeOn(Schedulers.newThread())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new Action1<Bitmap>() {
-                    @Override
-                    public void call(Bitmap bitmap) {
-                        if (bitmap == null) {
-                            setStateInternal(state, callListener);
-                        } else {
-                            setImageBitmap(bitmap);
+                .subscribe(bitmap -> {
+                    if (bitmap == null) {
+                        setStateInternal(state, callListener);
+                    } else {
+                        setImageBitmap(bitmap);
 
-                            int offset;
-                            if (mAnimDirection == ANIM_DIRECTION_VERTICAL) {
-                                offset = (mParentSize + getHeight()) / 2;
-                            } else if (mAnimDirection == ANIM_DIRECTION_HORIZONTAL) {
-                                offset = (mParentSize + getWidth()) / 2;
-                            } else {
-                                return;
+                        int offset;
+                        if (mAnimDirection == ANIM_DIRECTION_VERTICAL) {
+                            offset = (mParentSize + getHeight()) / 2;
+                        } else if (mAnimDirection == ANIM_DIRECTION_HORIZONTAL) {
+                            offset = (mParentSize + getWidth()) / 2;
+                        } else {
+                            return;
+                        }
+
+                        mAnimator.setFloatValues(-offset, 0.0f);
+                        AnimatorSet s = new AnimatorSet();
+                        s.play(mAnimator);
+                        s.addListener(new AnimatorListenerAdapter() {
+                            @Override
+                            public void onAnimationStart(Animator animation) {
+                                setClickEnabled(false);
                             }
 
-                            mAnimator.setFloatValues(-offset, 0.0f);
-                            AnimatorSet s = new AnimatorSet();
-                            s.play(mAnimator);
-                            s.addListener(new AnimatorListenerAdapter() {
-                                @Override
-                                public void onAnimationStart(Animator animation) {
-                                    setClickEnabled(false);
-                                }
-
-                                @Override
-                                public void onAnimationEnd(Animator animation) {
-                                    setStateInternal(state, callListener);
-                                    setClickEnabled(true);
-                                }
-                            });
-                            s.start();
-                        }
+                            @Override
+                            public void onAnimationEnd(Animator animation) {
+                                setStateInternal(state, callListener);
+                                setClickEnabled(true);
+                            }
+                        });
+                        s.start();
                     }
                 });
 
@@ -161,12 +157,9 @@ public class ToggleImageButton extends ImageButton {
     }
 
     protected void init() {
-        this.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (mClickEnabled) {
-                    nextState();
-                }
+        this.setOnClickListener(v -> {
+            if (mClickEnabled) {
+                nextState();
             }
         });
         setScaleType(ImageView.ScaleType.MATRIX);
@@ -174,19 +167,16 @@ public class ToggleImageButton extends ImageButton {
         mAnimator = ValueAnimator.ofFloat(0.0f, 0.0f);
         mAnimator.setDuration(ANIM_DURATION_MS);
         mAnimator.setInterpolator(Gusterpolator.INSTANCE);
-        mAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-            @Override
-            public void onAnimationUpdate(ValueAnimator animation) {
-                mMatrix.reset();
-                if (mAnimDirection == ANIM_DIRECTION_VERTICAL) {
-                    mMatrix.setTranslate(0.0f, (Float) animation.getAnimatedValue());
-                } else if (mAnimDirection == ANIM_DIRECTION_HORIZONTAL) {
-                    mMatrix.setTranslate((Float) animation.getAnimatedValue(), 0.0f);
-                }
-
-                setImageMatrix(mMatrix);
-                invalidate();
+        mAnimator.addUpdateListener(animation -> {
+            mMatrix.reset();
+            if (mAnimDirection == ANIM_DIRECTION_VERTICAL) {
+                mMatrix.setTranslate(0.0f, (Float) animation.getAnimatedValue());
+            } else if (mAnimDirection == ANIM_DIRECTION_HORIZONTAL) {
+                mMatrix.setTranslate((Float) animation.getAnimatedValue(), 0.0f);
             }
+
+            setImageMatrix(mMatrix);
+            invalidate();
         });
     }
 
@@ -243,9 +233,7 @@ public class ToggleImageButton extends ImageButton {
     }
 
     private Bitmap combine(int oldState, int newState) {
-        // in some cases, a new set of image Ids are set via overrideImageIds()
-        // and oldState overruns the array.
-        // check here for that.
+
         if (oldState >= mImageIds.length) {
             return null;
         }
@@ -259,15 +247,12 @@ public class ToggleImageButton extends ImageButton {
 
         int[] enabledState = new int[] {android.R.attr.state_enabled};
 
-        // new state
         Drawable newDrawable = getResources().getDrawable(mImageIds[newState]).mutate();
         newDrawable.setState(enabledState);
 
-        // old state
         Drawable oldDrawable = getResources().getDrawable(mImageIds[oldState]).mutate();
         oldDrawable.setState(enabledState);
 
-        // combine 'em
         Bitmap bitmap = null;
         if (mAnimDirection == ANIM_DIRECTION_VERTICAL) {
             int bitmapHeight = (height*2) + ((mParentSize - height)/2);
